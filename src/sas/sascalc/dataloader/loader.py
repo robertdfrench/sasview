@@ -30,6 +30,12 @@ from sas.sascalc.data_util.registry import ExtensionRegistry
 import readers
 from readers import ascii_reader
 from readers import cansas_reader
+# Optional typing
+try:
+    from typing import List
+    import data_info
+except ImportError:
+    pass
 
 class Registry(ExtensionRegistry):
     """
@@ -53,6 +59,7 @@ class Registry(ExtensionRegistry):
         readers.read_associations(self)
 
     def load(self, path, format=None):
+        # type: (str, str) -> data_info.DataInfo
         """
         Call the loader for the file type of path.
 
@@ -76,6 +83,7 @@ class Registry(ExtensionRegistry):
                 return cansas_loader.read(path)
 
     def find_plugins(self, dir):
+        # type: (str) -> int
         """
         Find readers in a given directory. This method
         can be used to inspect user plug-in directories to
@@ -148,6 +156,7 @@ class Registry(ExtensionRegistry):
         return readers_found
 
     def associate_file_type(self, ext, module):
+        # type: (str, readers.Reader) -> bool
         """
         Look into a module to find whether it contains a
         Reader class. If so, APPEND it to readers and (potentially)
@@ -193,6 +202,7 @@ class Registry(ExtensionRegistry):
         return reader_found
 
     def associate_file_reader(self, ext, loader):
+        # type: (str, readers.Reader) -> bool
         """
         Append a reader object to readers
 
@@ -271,6 +281,7 @@ class Registry(ExtensionRegistry):
         return reader_found
 
     def lookup_writers(self, path):
+        # type: (str) -> List[readers.Reader]
         """
         :return: the loader associated with the file type of path.
         :Raises ValueError: if file type is not known.
@@ -297,6 +308,7 @@ class Registry(ExtensionRegistry):
         return writers
 
     def save(self, path, data, format=None):
+        # type: (str, data_info.DataInfo, str) -> None
         """
         Call the writer for the file type of path.
 
@@ -325,6 +337,7 @@ class Loader(object):
     __registry = Registry()
 
     def associate_file_type(self, ext, module):
+        # type: (str, readers.Reader) -> bool
         """
         Look into a module to find whether it contains a
         Reader class. If so, append it to readers and (potentially)
@@ -336,6 +349,7 @@ class Loader(object):
         return self.__registry.associate_file_type(ext, module)
 
     def associate_file_reader(self, ext, loader):
+        # type: (str, readers.Reader) -> bool
         """
         Append a reader object to readers
 
@@ -345,6 +359,7 @@ class Loader(object):
         return self.__registry.associate_file_reader(ext, loader)
 
     def load(self, file, format=None):
+        # type: (str, str) -> data_info.DataInfo
         """
         Load a file
 
@@ -355,6 +370,7 @@ class Loader(object):
         return self.__registry.load(file, format)
 
     def save(self, file, data, format):
+        # type: (str, data_info.DataInfo, str) -> None
         """
         Save a DataInfo object to file
         :param file: file name (path)
@@ -371,6 +387,7 @@ class Loader(object):
         return self.__registry._created
 
     def find_plugins(self, directory):
+        # type: (str) -> int
         """
         Find plugins in a given directory
 
@@ -379,6 +396,7 @@ class Loader(object):
         return self.__registry.find_plugins(directory)
 
     def get_wildcards(self):
+        # type: () -> List[str]
         """
         Return the list of wildcards
         """

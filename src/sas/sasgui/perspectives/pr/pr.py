@@ -219,12 +219,7 @@ class Plugin(PluginBase):
         y = y / total * d_max / len(r)
 
         # Perform fit
-        pr = Invertor()
-        pr.d_max = d_max
-        pr.alpha = 0
-        pr.x = r
-        pr.y = y
-        pr.err = pr_err
+        pr = Invertor(d_max=d_max, alpha=0.0, x=x, y=y, err=pr_err)
         out, cov = pr.pr_fit()
         for i in range(len(out)):
             print "%g +- %g" % (out[i], math.sqrt(cov[i][i]))
@@ -962,16 +957,15 @@ class Plugin(PluginBase):
             return None
 
         # Get the data from the chosen data set and perform inversion
-        pr = Invertor()
-        pr.d_max = self.max_length
-        pr.alpha = self.alpha
-        pr.q_min = self.q_min
-        pr.q_max = self.q_max
-        pr.x = self.current_plottable.x
-        pr.y = self.current_plottable.y
-        pr.has_bck = self.has_bck
-        pr.slit_height = self.slit_height
-        pr.slit_width = self.slit_width
+        pr = Invertor(d_max=self.max_length,
+                      alpha=self.alpha,
+                      q_min=self.q_min,
+                      q_max=self.q_max,
+                      x=self.current_plottable.x,
+                      y=self.current_plottable.y,
+                      has_bck=self.has_bck,
+                      slit_height=self.slit_height,
+                      slit_width=self.slit_width)
 
         # Keep track of the plot window title to ensure that
         # we can overlay the plots
@@ -1103,17 +1097,16 @@ class Plugin(PluginBase):
 
         try:
             # Get the data from the chosen data set and perform inversion
-            pr = Invertor()
-            pr.d_max = self.max_length
-            pr.alpha = self.alpha
-            pr.q_min = self.q_min
-            pr.q_max = self.q_max
-            pr.x = x
-            pr.y = y
-            pr.err = err
-            pr.has_bck = self.has_bck
-            pr.slit_height = self.slit_height
-            pr.slit_width = self.slit_width
+            pr = Invertor(d_max=self.max_length,
+                          alpha=self.alpha,
+                          q_min=self.q_min,
+                          q_max=self.q_max,
+                          x=x,
+                          y=y,
+                          err=err,
+                          has_bck=self.has_bck,
+                          slit_height=self.slit_height,
+                          slit_width=self.slit_width)
             return pr
         except:
             load_error(sys.exc_value)

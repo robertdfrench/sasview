@@ -108,8 +108,33 @@ class Invertor(Cinvertor):
     ## Information dictionary for application use
     info = {}
 
-    def __init__(self):
+    def __init__(self,
+                 alpha=0.0,
+                 q_min=0.0,
+                 q_max=0.0,
+                 x=None,
+                 y=None,
+                 err=None,
+                 has_bck=True,
+                 slit_height=0.0,
+                 slit_width=0.0,
+                 d_max=0.0):
+        # type: (float, float, float, List[float], List[float], List[float], bool, float, float, float) -> None
         Cinvertor.__init__(self)
+        self.alpha = alpha
+        self.q_min = q_min
+        self.q_max = q_max
+        if x is not None:
+            self.x = x
+        if y is not None:
+            self.y = y
+        if err is not None:
+            self.err = err
+        self.has_bck = has_bck
+        self.slit_height = slit_height
+        self.slit_width = slit_width
+        self.d_max = d_max
+        
 
     def __setstate__(self, state):
         """
@@ -224,6 +249,7 @@ class Invertor(Cinvertor):
         return None
 
     def clone(self):
+        # type: () -> Invertor
         """
         Return a clone of this instance
         """
@@ -250,6 +276,7 @@ class Invertor(Cinvertor):
         return invertor
 
     def invert(self, nfunc=10, nr=20):
+        # type: (int, int) -> Tuple[numpy.array, numpy.array]
         """
         Perform inversion to P(r)
 
@@ -287,6 +314,7 @@ class Invertor(Cinvertor):
         return self.lstsq(nfunc, nr=nr)
 
     def iq(self, out, q):
+        # type: (List[float], float) -> float
         """
         Function to call to evaluate the scattering intensity
 
@@ -297,6 +325,7 @@ class Invertor(Cinvertor):
         return Cinvertor.iq(self, out, q) + self.background
 
     def invert_optimize(self, nfunc=10, nr=20):
+        # type: (int, int) -> Tuple[numpy.ndarray, numpy.ndarray]
         """
         Slower version of the P(r) inversion that uses scipy.optimize.leastsq.
 
@@ -341,6 +370,7 @@ class Invertor(Cinvertor):
         return out, cov_x
 
     def pr_fit(self, nfunc=5):
+        # type: (int) -> Tuple[numpy.ndarray, numpy.ndarray]
         """
         This is a direct fit to a given P(r). It assumes that the y data
         is set to some P(r) distribution that we are trying to reproduce
@@ -371,6 +401,7 @@ class Invertor(Cinvertor):
         return out, cov_x
 
     def pr_err(self, c, c_cov, r):
+        # type: (List[float], List[float], float) -> List[float]
         """
         Returns the value of P(r) for a given r, and base function
         coefficients, with error.
@@ -385,6 +416,7 @@ class Invertor(Cinvertor):
         return self.get_pr_err(c, c_cov, r)
 
     def _accept_q(self, q):
+        # type: (float) -> bool
         """
         Check q-value against user-defined range
         """
@@ -395,6 +427,7 @@ class Invertor(Cinvertor):
         return True
 
     def lstsq(self, nfunc=5, nr=20):
+        # type: (int, int) -> Tuple(numpy.ndarray, numpy.ndarray)
         """
         The problem is solved by posing the problem as  Ax = b,
         where x is the set of coefficients we are looking for.
@@ -517,6 +550,7 @@ class Invertor(Cinvertor):
         return self.out, self.cov
 
     def estimate_numterms(self, isquit_func=None):
+        # type: (Callable) -> Tuple[int, float, str]
         """
         Returns a reasonable guess for the
         number of terms
@@ -540,6 +574,7 @@ class Invertor(Cinvertor):
             return self.nfunc, best_alpha, "Could not estimate number of terms"
 
     def estimate_alpha(self, nfunc):
+        # type: (int) -> Tuple[float, str, float]
         """
         Returns a reasonable guess for the
         regularization constant alpha
@@ -627,6 +662,7 @@ class Invertor(Cinvertor):
             return 0, message, elapsed
 
     def to_file(self, path, npts=100):
+        # type: (str, int) -> None
         """
         Save the state to a file that will be readable
         by SliceView.
@@ -666,6 +702,7 @@ class Invertor(Cinvertor):
         file.close()
 
     def from_file(self, path):
+        # type: (str) -> None
         """
         Load the state of the Invertor from a file,
         to be able to generate P(r) from a set of
