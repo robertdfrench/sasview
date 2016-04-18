@@ -361,7 +361,7 @@ class Loader(object):
     def load(self, file, format=None):
         # type: (str, str) -> data_info.DataInfo
         """
-        Load a file
+        Load a file and return its content as a DataInfo object
 
         :param file: file name (path)
         :param format: specified format to use (optional)
@@ -373,6 +373,7 @@ class Loader(object):
         # type: (str, data_info.DataInfo, str) -> None
         """
         Save a DataInfo object to file
+
         :param file: file name (path)
         :param data: DataInfo object
         :param format: format to write the data in

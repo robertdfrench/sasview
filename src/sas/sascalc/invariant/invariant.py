@@ -370,6 +370,7 @@ class InvariantCalculator(object):
     :note: Some computations depends on each others.
     """
     def __init__(self, data, background=0, scale=1):
+        # type: (DataLoader.Data1D, float, float) -> None
         """
         Initialize variables.
 
@@ -414,7 +415,32 @@ class InvariantCalculator(object):
         # Extrapolation range
         self._low_q_limit = Q_MINIMUM
 
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        self._data = self._get_data(value)
+
+    @property
+    def background(self):
+        return self._background
+
+    @background.setter
+    def background(self, value):
+        self._background = value
+
+    @property
+    def scale(self):
+        return self._scale
+
+    @scale.setter
+    def scale(self, value):
+        self._scale = value
+
     def _get_data(self, data):
+        # type: (DataLoader.Data1D) -> DataLoader.Data1D
         """
         :note: this function must be call before computing any type
          of invariant
@@ -437,6 +463,7 @@ class InvariantCalculator(object):
         return  new_data
 
     def _fit(self, model, qmin=Q_MINIMUM, qmax=Q_MAXIMUM, power=None):
+        # type: (Transform, float, float, float) -> Tuple(float, float)
         """
         fit data with function using
         data = self._get_data()
@@ -460,6 +487,7 @@ class InvariantCalculator(object):
                                               dconstant=dp[1], dslope=dp[0])
 
     def _get_qstar(self, data):
+        # type: (DataLoader.Data1D) -> float
         """
         Compute invariant for pinhole data.
         This invariant is given by: ::
@@ -512,6 +540,7 @@ class InvariantCalculator(object):
                 return total
 
     def _get_qstar_uncertainty(self, data):
+        # type: (DataLoader.Data1D) -> float
         """
         Compute invariant uncertainty with with pinhole data.
         This uncertainty is given as follow: ::
@@ -566,6 +595,8 @@ class InvariantCalculator(object):
 
     def _get_extrapolated_data(self, model, npts=INTEGRATION_NSTEPS,
                                q_start=Q_MINIMUM, q_end=Q_MAXIMUM):
+        # type: (Transform, int, float, float) -> DataLoader.Data1D
+
         """
         :return: extrapolate data create from data
         """
@@ -582,13 +613,8 @@ class InvariantCalculator(object):
             result_data.dxl = self._smeared * numpy.ones(len(q))
         return result_data
 
-    def get_data(self):
-        """
-        :return: self._data
-        """
-        return self._data
-
     def get_extrapolation_power(self, range='high'):
+        # type: (str) -> float
         """
         :return: the fitted power for power law function for a given
             extrapolation range
@@ -598,6 +624,7 @@ class InvariantCalculator(object):
         return self._high_extrapolation_power_fitted
 
     def get_qstar_low(self):
+        # type: () -> Tuple(float, float)
         """
         Compute the invariant for extrapolated data at low q range.
 
@@ -637,6 +664,7 @@ class InvariantCalculator(object):
         return self._get_qstar(data), self._get_qstar_uncertainty(data) + err
 
     def get_qstar_high(self):
+        # type: () -> Tuple(float, float)
         """
         Compute the invariant for extrapolated data at high q range.
 
@@ -667,6 +695,7 @@ class InvariantCalculator(object):
         return self._get_qstar(data), self._get_qstar_uncertainty(data)
 
     def get_extra_data_low(self, npts_in=None, q_start=None, npts=20):
+        # type: (int, float, int) -> DataLoader.Data1D
         """
         Returns the extrapolated data used for the loew-Q invariant calculation.
         By default, the distribution will cover the data points used for the
@@ -698,6 +727,7 @@ class InvariantCalculator(object):
                                     q_start=q_start, q_end=q_end)
 
     def get_extra_data_high(self, npts_in=None, q_end=Q_MAXIMUM, npts=20):
+        # type: (int, float, int) -> DataLoader.Data1D
         """
         Returns the extrapolated data used for the high-Q invariant calculation.
         By default, the distribution will cover the data points used for the
@@ -726,6 +756,7 @@ class InvariantCalculator(object):
                                 q_start=q_start, q_end=q_end)
 
     def set_extrapolation(self, range, npts=4, function=None, power=None):
+        # type: (str, int, str, float) -> None
         """
         Set the extrapolation parameters for the high or low Q-range.
         Note that this does not turn extrapolation on or off.
@@ -763,7 +794,8 @@ class InvariantCalculator(object):
             self._low_extrapolation_power = power
             self._low_extrapolation_power_fitted = power
 
-    def get_qstar(self, extrapolation=None):
+    def _get_qstar_local(self, extrapolation=None):
+        # type: (str) -> float
         """
         Compute the invariant of the local copy of data.
 
@@ -803,7 +835,8 @@ class InvariantCalculator(object):
 
         return self._qstar
 
-    def get_surface(self, contrast, porod_const, extrapolation=None):
+    def _get_surface(self, contrast, porod_const, extrapolation=None):
+        # type: (float, float, str) -> float
         """
         Compute the specific surface from the data.
 
@@ -825,7 +858,8 @@ class InvariantCalculator(object):
         return 2 * math.pi * volume * (1 - volume) * \
             float(porod_const) / self._qstar
 
-    def get_volume_fraction(self, contrast, extrapolation=None):
+    def _get_volume_fraction(self, contrast, extrapolation=None):
+        # type: (float, str) -> float
         """
         Compute volume fraction is deduced as follow: ::
 
@@ -838,7 +872,7 @@ class InvariantCalculator(object):
 
             q_star: the invariant value included extrapolation is applied
                          unit  1/A^(3)*1/cm
-                    q_star = self.get_qstar()
+                    q_star = self._get_qstar_local()
 
             the result returned will be 0 <= volume <= 1
 
@@ -854,7 +888,7 @@ class InvariantCalculator(object):
             raise ValueError, "The contrast parameter must be greater than zero"
 
         # Make sure Q star is up to date
-        self.get_qstar(extrapolation)
+        self._get_qstar_local(extrapolation)
 
         if self._qstar <= 0:
             msg = "Invalid invariant: Invariant Q* must be greater than zero"
@@ -883,6 +917,7 @@ class InvariantCalculator(object):
             raise RuntimeError, msg
 
     def get_qstar_with_error(self, extrapolation=None):
+        # type: (str) -> Tuple(float, float)
         """
         Compute the invariant uncertainty.
         This uncertainty computation depends on whether or not the data is
@@ -892,10 +927,11 @@ class InvariantCalculator(object):
 
         :return: invariant, the invariant uncertainty
         """
-        self.get_qstar(extrapolation)
+        self._get_qstar_local(extrapolation)
         return self._qstar, self._qstar_err
 
     def get_volume_fraction_with_error(self, contrast, extrapolation=None):
+        # type: (float, str) -> Tuple(float, float)
         """
         Compute uncertainty on volume value as well as the volume fraction
         This uncertainty is given by the following equation: ::
@@ -915,7 +951,7 @@ class InvariantCalculator(object):
 
         :return: V, dV = volume fraction, error on volume fraction
         """
-        volume = self.get_volume_fraction(contrast, extrapolation)
+        volume = self._get_volume_fraction(contrast, extrapolation)
 
         # Compute error
         k = 1.e-8 * self._qstar / (2 * (math.pi * math.fabs(float(contrast))) ** 2)
@@ -930,6 +966,7 @@ class InvariantCalculator(object):
         return volume, uncertainty
 
     def get_surface_with_error(self, contrast, porod_const, extrapolation=None):
+        # type: (float, float, str) -> Tuple(float, float)
         """
         Compute uncertainty of the surface value as well as the surface value.
         The uncertainty is given as follow: ::
@@ -954,7 +991,7 @@ class InvariantCalculator(object):
         #   which computes Qstar and dQstar
         v, dv = self.get_volume_fraction_with_error(contrast, extrapolation)
 
-        s = self.get_surface(contrast=contrast, porod_const=porod_const,
+        s = self._get_surface(contrast=contrast, porod_const=porod_const,
                              extrapolation=extrapolation)
         ds = porod_const * 2 * math.pi * ((dv - 2 * v * dv) / self._qstar\
                  + self._qstar_err * (v - v ** 2))
