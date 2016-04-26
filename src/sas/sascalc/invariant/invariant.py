@@ -842,7 +842,7 @@ class InvariantCalculator(object):
 
         Implementation::
 
-          V =  self.get_volume_fraction(contrast, extrapolation)
+          V =  self._get_surface(contrast, porod_const, extrapolation)
 
           Compute the surface given by:
             surface = (2*pi *V(1- V)*porod_const)/ q_star
@@ -854,7 +854,7 @@ class InvariantCalculator(object):
         :return: specific surface
         """
         # Compute the volume
-        volume = self.get_volume_fraction(contrast, extrapolation)
+        volume = self._get_volume_fraction(contrast, extrapolation)
         return 2 * math.pi * volume * (1 - volume) * \
             float(porod_const) / self._qstar
 

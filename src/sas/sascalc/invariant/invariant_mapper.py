@@ -20,7 +20,7 @@ def get_volume_fraction(inv, contrast, extrapolation=None):
     """
     Get volume fraction
     """
-    return inv.get_volume_fraction(contrast, extrapolation)
+    return inv._get_volume_fraction(contrast, extrapolation)
 
 def get_volume_fraction_with_error(inv, contrast, extrapolation=None):
     """

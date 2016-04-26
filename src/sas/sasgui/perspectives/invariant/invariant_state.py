@@ -214,7 +214,7 @@ class InvariantState(object):
                     value = self.saved_state[name]
 
             # Exclude the outputs w/''
-            if value == '':
+            if value == '' or value is None:
                 continue
             # Error outputs
             if item_split[max_ind] == 'err':

@@ -279,7 +279,7 @@ class TestInvPinholeSmear(unittest.TestCase):
         inv = invariant.InvariantCalculator(data=self.data_q_smear)
         qstar = inv.get_qstar()
         
-        v = inv.get_volume_fraction(contrast=2.6e-6)
+        v = inv._get_volume_fraction(contrast=2.6e-6)
         s = inv.get_surface(contrast=2.6e-6, porod_const=2)
         # Test results
         self.assertAlmostEquals(qstar, 1.361677e-3, 4)
