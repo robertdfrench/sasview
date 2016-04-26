@@ -251,6 +251,7 @@ class BumpsFit(FitEngine):
     def fit(self, msg_q=None,
             q=None, handler=None, curr_thread=None,
             ftol=1.49012e-8, reset_flag=False):
+        # type: (CalcThread.queue, CalcThread.queue, FitHandler, CalcThread, float, bool) -> Union[CalcThread.queue, FResult]
         # Build collection of bumps fitness calculators
         models = [SasFitness(model=M.get_model(),
                              data=M.get_data(),
@@ -313,6 +314,7 @@ class BumpsFit(FitEngine):
             return all_results
 
 def run_bumps(problem, handler, curr_thread):
+    # type: (FitProblem, CalcThread) -> dict
     def abort_test():
         if curr_thread is None: return False
         try: curr_thread.isquit()
