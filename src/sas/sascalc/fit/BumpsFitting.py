@@ -26,10 +26,11 @@ from bumps.mapper import SerialMapper, MPMapper
 from bumps import parameter
 from bumps.fitproblem import FitProblem
 
-
+#from blabla import sesans
 from sas.sascalc.fit.AbstractFitEngine import FitEngine
 from sas.sascalc.fit.AbstractFitEngine import FResult
 from sas.sascalc.fit.expression import compile_constraints
+from sasmodels import sesans
 
 class Progress(object):
     def __init__(self, history, max_step, pars, dof):
@@ -187,8 +188,14 @@ class SasFitness(object):
 
     def _recalculate(self):
         if self._dirty:
-            self._residuals, self._theory \
-                = self.data.residuals(self.model.evalDistribution)
+            # Check if you are dealing with SESANS data, right now only SESANS data has a 'lam' attribute
+            if hasattr(self,'lam'):
+                self._residuals, self._theory \
+                    = self.data.residuals(sesans.transform(self.data, q, Iq, 0, 0))
+            # If not SESANS, do the 'normal' stuff
+            else:
+                self._residuals, self._theory \
+                    = self.data.residuals(self.model.evalDistribution)
             self._dirty = False
 
     def numpoints(self):

@@ -7,6 +7,8 @@ import numpy
 
 from sas.sascalc.dataloader.data_info import Data1D
 from sas.sascalc.dataloader.data_info import Data2D
+from sas.sascalc.dataloader.data_info import SESANSData1D
+
 _SMALLVALUE = 1.0e-10
 
 class FitHandler(object):
@@ -378,7 +380,147 @@ class FitData2D(Data2D):
         
         """
         return []
-    
+
+class FitSESANSData1D(SESANSData1D):
+    """
+        Wrapper class  for SESANS data
+        FitSESANSData1D inherits from DataLoader.data_info.SESANSData1D. Implements
+        a way to get residuals from data.
+    """
+    #def __init__(self, x, y, dx=None, dy=None, smearer=None, data=None):
+    def __init__(self, x=None, y=None, lam=None, dx=None, dy=None, dlam=None, smearer=None, data=None):
+        """
+            :param smearer: is an object of class QSmearer or SlitSmearer
+               that will smear the theory data (slit smearing or resolution
+               smearing) when set.
+               Not sure if Sesans needs these...
+
+            The proper way to set the smearing object would be to
+            do the following: ::
+
+                from sas.sascalc.data_util.qsmearing import smear_selection
+                smearer = smear_selection(some_data)
+                fitdata1d = FitData1D( x= [1,3,..,],
+                                        y= [3,4,..,8],
+                                        dx=None,
+                                        dy=[1,2...], smearer= smearer)
+
+            :Note: that some_data _HAS_ to be of
+                class DataLoader.data_info.Data1D
+                Setting it back to None will turn smearing off.
+
+        """
+        SESANSData1D.__init__(self, x=x, y=y, lam=lam, dx=dx, dy=dy, dlam=dlam)
+        self.num_points = len(x)
+        #I am keeping the name sas_data, but it is technically not sas anymore (it's real-space, not q-space)
+        self.sas_data = data
+        self.smearer = smearer
+        self._first_unsmeared_bin = None
+        self._last_unsmeared_bin = None
+        # Check error bar; if no error bar found, set it constant(=1)
+        # TODO: Should provide an option for users to set it like percent,
+        # constant, or dy data
+        # all() returns True or False, ==0 is not logical... Also, it sets the errors to 1? Why not 0???
+        if dy is None or dy == [] or dy.all() == 0:
+            self.dy = numpy.ones(len(y))
+        else:
+            self.dy = numpy.asarray(dy).copy()
+
+        ## Min z-value
+        #Skip the z=0 point, especially when y(z=0)=None at x[0].
+        if min(self.x) == 0.0 and self.x[0] == 0 and\
+                     not numpy.isfinite(self.y[0]):
+            self.zmin = min(self.x[self.x != 0])
+        else:
+            self.zmin = min(self.x)
+        ## Max Q-value
+        self.zmax = max(self.x)
+
+        # Range used for input to smearing
+        self._zmin_unsmeared = self.zmin
+        self._zmax_unsmeared = self.zmax
+        # Identify the bin range for the unsmeared and smeared spaces
+        #  This is cicuitous b*llsh*t!
+        self.idx = (self.x >= self.zmin) & (self.x <= self.zmax)
+        self.idx_unsmeared = (self.x >= self._zmin_unsmeared) \
+                            & (self.x <= self._zmax_unsmeared)
+
+    def set_fit_range(self, zmin=None, zmax=None):
+        """ to set the fit range"""
+        # Skip z=0 point, (especially for y(z=0)=None at x[0]).
+        # ToDo: Find better way to do it.
+        if zmin == 0.0 and not numpy.isfinite(self.y[zmin]):
+            self.zmin = min(self.x[self.x != 0])
+        elif zmin != None:
+            self.zmin = zmin
+        if zmax != None:
+            self.zmax = zmax
+        # Determine the range needed in unsmeared-z to cover
+        # the smeared z range
+        self._zmin_unsmeared = self.zmin
+        self._zmax_unsmeared = self.zmax
+
+        self._first_unsmeared_bin = 0
+        self._last_unsmeared_bin = len(self.x) - 1
+
+        if self.smearer != None:
+            self._first_unsmeared_bin, self._last_unsmeared_bin = \
+                    self.smearer.get_bin_range(self.zmin, self.zmax)
+            self._zmin_unsmeared = self.x[self._first_unsmeared_bin]
+            self._zmax_unsmeared = self.x[self._last_unsmeared_bin]
+
+        # Identify the bin range for the unsmeared and smeared spaces
+        self.idx = (self.x >= self.zmin) & (self.x <= self.zmax)
+        ## zero error can not participate for fitting
+        self.idx = self.idx & (self.dy != 0)
+        self.idx_unsmeared = (self.x >= self._zmin_unsmeared) \
+                            & (self.x <= self._zmax_unsmeared)
+
+    def get_fit_range(self):
+        """
+            Return the range of data.x to fit
+        """
+        return self.zmin, self.zmax
+
+    def size(self):
+        """
+        Number of measurement points in data set after masking, etc.
+        """
+        return len(self.x)
+
+    def residuals(self, fn):
+        """
+            Compute residuals.
+
+            If self.smearer has been set, use if to smear
+            the data before computing chi squared.
+
+            :param fn: function that return model value (this is usually called 'model' in the rest of the code)
+
+            :return: residuals of the fitting operation
+        """
+        # Compute theory data f(x)
+        fx = numpy.zeros(len(self.x))
+        fx[self.idx_unsmeared] = fn(self.x[self.idx_unsmeared])
+
+        ## Smear theory data
+        if self.smearer is not None:
+            fx = self.smearer(fx, self._first_unsmeared_bin,
+                              self._last_unsmeared_bin)
+        ## Sanity check
+        if numpy.size(self.dy) != numpy.size(fx):
+            msg = "FitSESANSData1D: invalid error array "
+            msg += "%d <> %d" % (numpy.shape(self.dy), numpy.size(fx))
+            raise RuntimeError, msg
+        return (self.y[self.idx] - fx[self.idx]) / self.dy[self.idx], fx[self.idx]
+
+    def residuals_deriv(self, model, pars=[]):
+        """
+            :return: residuals derivatives .
+
+            :note: in this case just return empty array
+        """
+        return []
     
 class FitAbort(Exception):
     """
