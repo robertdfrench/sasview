@@ -22,6 +22,7 @@ from sas.sasgui.guiframe.data_state import DataState
 from sas.sasgui.guiframe.utils import parse_name
 import sas.sascalc.dataloader.data_info as DataInfo
 from sas.sasgui.guiframe.dataFitting import Data1D
+from sas.sasgui.guiframe.dataFitting import SESANSData1D
 from sas.sasgui.guiframe.dataFitting import Data2D
 import time
 
@@ -61,8 +62,12 @@ class DataManager(object):
         
         if issubclass(Data2D, data.__class__):
             new_plot = Data2D(image=None, err_image=None) 
-        else: 
+        elif issubclass(SESANSData1D,data.__class__):
+            new_plot = SESANSData1D(image=None, err_image=None)
+        elif:
             new_plot = Data1D(x=[], y=[], dx=None, dy=None)
+        else:
+            raise(ValueError, "something, something")
            
         new_plot.copy_from_datainfo(data)
         data.clone_without_data(clone=new_plot)

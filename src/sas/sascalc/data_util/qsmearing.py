@@ -35,6 +35,8 @@ def smear_selection(data, model = None):
     """
     # Sanity check. If we are not dealing with a SAS Data1D
     # object, just return None
+    if hasattr(data,'pol'):
+        return pinhole_smear(data, model)
     if  data.__class__.__name__ not in ['Data1D', 'Theory1D']:
         if data == None:
             return None
@@ -45,6 +47,8 @@ def smear_selection(data, model = None):
     if  not hasattr(data, "dx") and not hasattr(data, "dxl")\
          and not hasattr(data, "dxw"):
         return None
+
+    # SESANS stuff here
 
     # Look for resolution smearing data
     _found_resolution = False

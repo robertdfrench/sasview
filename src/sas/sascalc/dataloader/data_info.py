@@ -25,6 +25,17 @@ from sas.sascalc.data_util.uncertainty import Uncertainty
 import numpy
 import math
 
+
+def DataClass(data):
+    if issubclass(Data2D, data.__class__):
+        new_plot = Data2D(image=None, err_image=None)
+    elif issubclass(SESANSData1D,data.__class__):
+        new_plot = SESANSData1D(image=None, err_image=None)
+    elif issubclass(Data1D, data.__class__):
+        new_plot = Data1D(x=[], y=[], dx=None, dy=None)
+    else:
+        raise(TypeError, "Your data is not of any type recognized by DatatypeChecker, are you sure Sasview can handle it? Is it corrupted perhaps?")
+    return data.__class__
 class plottable_sesans1D(object):
     """
     SESANS is a place holder for 1D SESANS plottables.

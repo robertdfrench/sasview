@@ -11,7 +11,7 @@ from sas.sasgui.plottools.plottables import Theory1D as PlotTheory1D
 
 from sas.sascalc.dataloader.data_info import Data1D as LoadData1D
 from sas.sascalc.dataloader.data_info import Data2D as LoadData2D
-
+from sas.sascalc.dataloader.data_info import SESANSData1D as LoadSESANSData1D
 
 class Data1D(PlotData1D, LoadData1D):
     """
