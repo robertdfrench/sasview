@@ -297,13 +297,13 @@ def plotsFromCheckedItems(model_item):
         item = model_item.item(index)
         if item.isCheckable() and item.checkState() == QtCore.Qt.Checked:
             # TODO: assure item type is correct (either data1/2D or Plotter)
-            plot_data.append(item.child(0).data().toPyObject())
+            plot_data.append((item, item.child(0).data().toPyObject()))
         # Going 1 level deeper only
         for index_2 in range(item.rowCount()):
             item_2 = item.child(index_2)
             if item_2 and item_2.isCheckable() and item_2.checkState() == QtCore.Qt.Checked:
                 # TODO: assure item type is correct (either data1/2D or Plotter)
-                plot_data.append(item_2.child(0).data().toPyObject())
+                plot_data.append((item_2, item_2.child(0).data().toPyObject()))
 
     return plot_data
 

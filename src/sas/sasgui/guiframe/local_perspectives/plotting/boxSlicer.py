@@ -1,12 +1,15 @@
-import wx
 import math
 import numpy
-from sas.sasgui.guiframe.events import NewPlotEvent
-from sas.sasgui.guiframe.events import StatusEvent
-from sas.sasgui.guiframe.events import SlicerParameterEvent
-from sas.sasgui.guiframe.events import EVT_SLICER_PARS
+from PyQt4 import QtGui
+from PyQt4 import QtCore
+
+#from sas.sasgui.guiframe.events import NewPlotEvent
+#from sas.sasgui.guiframe.events import StatusEvent
+#from sas.sasgui.guiframe.events import SlicerParameterEvent
+#from sas.sasgui.guiframe.events import EVT_SLICER_PARS
 from BaseInteractor import _BaseInteractor
 from sas.sasgui.guiframe.dataFitting import Data1D
+import sas.qtgui.GuiUtils as GuiUtils
 
 
 class BoxInteractor(_BaseInteractor):
@@ -14,23 +17,24 @@ class BoxInteractor(_BaseInteractor):
     BoxInteractor define a rectangle that return data1D average of Data2D
     in a rectangle area defined by -x, x ,y, -y
     """
-    def __init__(self, base, axes, color='black', zorder=3):
+    def __init__(self, base, axes, item=None, color='black', zorder=3):
         _BaseInteractor.__init__(self, base, axes, color=color)
         # # Class initialization
         self.markers = []
         self.axes = axes
+        self._item = item
         # #connecting artist
         self.connect = self.base.connect
         # # which direction is the preferred interaction direction
         self.direction = None
         # # determine x y  values
-        self.x = 0.5 * min(math.fabs(self.base.data2D.xmax),
-                           math.fabs(self.base.data2D.xmin))
-        self.y = 0.5 * min(math.fabs(self.base.data2D.xmax),
-                           math.fabs(self.base.data2D.xmin))
+        self.x = 0.5 * min(math.fabs(self.base.data.xmax),
+                           math.fabs(self.base.data.xmin))
+        self.y = 0.5 * min(math.fabs(self.base.data.xmax),
+                           math.fabs(self.base.data.xmin))
         # # when reach qmax reset the graph
-        self.qmax = max(self.base.data2D.xmax, self.base.data2D.xmin,
-                        self.base.data2D.ymax, self.base.data2D.ymin)
+        self.qmax = max(self.base.data.xmax, self.base.data.xmin,
+                        self.base.data.ymax, self.base.data.ymin)
         # # Number of points on the plot
         self.nbins = 30
         # # If True, I(|Q|) will be return, otherwise,
@@ -40,7 +44,7 @@ class BoxInteractor(_BaseInteractor):
         self.averager = None
         # # Create vertical and horizaontal lines for the rectangle
         self.vertical_lines = VerticalLines(self,
-                                            self.base.subplot,
+                                            self.axes,
                                             color='blue',
                                             zorder=zorder,
                                             y=self.y,
@@ -48,7 +52,7 @@ class BoxInteractor(_BaseInteractor):
         self.vertical_lines.qmax = self.qmax
 
         self.horizontal_lines = HorizontalLines(self,
-                                                self.base.subplot,
+                                                self.axes,
                                                 color='green',
                                                 zorder=zorder,
                                                 x=self.x,
@@ -59,21 +63,21 @@ class BoxInteractor(_BaseInteractor):
         self.update()
         self._post_data()
         # # Bind to slice parameter events
-        self.base.Bind(EVT_SLICER_PARS, self._onEVT_SLICER_PARS)
+        #self.base.Bind(EVT_SLICER_PARS, self._onEVT_SLICER_PARS)
 
-    def _onEVT_SLICER_PARS(self, event):
-        """
-        receive an event containing parameters values to reset the slicer
+    #def _onEVT_SLICER_PARS(self, event):
+    #    """
+    #    receive an event containing parameters values to reset the slicer
 
-        :param event: event of type SlicerParameterEvent with params as
-            attribute
-        """
-        wx.PostEvent(self.base.parent,
-                     StatusEvent(status="BoxSlicer._onEVT_SLICER_PARS"))
-        event.Skip()
-        if event.type == self.__class__.__name__:
-            self.set_params(event.params)
-            self.base.update()
+    #    :param event: event of type SlicerParameterEvent with params as
+    #        attribute
+    #    """
+    #    wx.PostEvent(self.base.parent,
+    #                 StatusEvent(status="BoxSlicer._onEVT_SLICER_PARS"))
+    #    event.Skip()
+    #    if event.type == self.__class__.__name__:
+    #        self.set_params(event.params)
+    #        self.base.update()
 
     def update_and_post(self):
         """
@@ -100,8 +104,8 @@ class BoxInteractor(_BaseInteractor):
         self.clear_markers()
         self.horizontal_lines.clear()
         self.vertical_lines.clear()
-        self.base.connect.clearall()
-        self.base.Unbind(EVT_SLICER_PARS)
+        #self.base.connect.clearall()
+        #self.base.Unbind(EVT_SLICER_PARS)
 
     def update(self):
         """
@@ -172,7 +176,7 @@ class BoxInteractor(_BaseInteractor):
         box = self.averager(x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max,
                             bin_width=bin_width)
         box.fold = self.fold
-        boxavg = box(self.base.data2D)
+        boxavg = box(self.base.data)
         # 3 Create Data1D to plot
         if hasattr(boxavg, "dxl"):
             dxl = boxavg.dxl
@@ -186,27 +190,32 @@ class BoxInteractor(_BaseInteractor):
         new_plot.dxl = dxl
         new_plot.dxw = dxw
         new_plot.name = str(self.averager.__name__) + \
-                        "(" + self.base.data2D.name + ")"
-        new_plot.source = self.base.data2D.source
+                        "(" + self.base.data.name + ")"
+        new_plot.title = str(self.averager.__name__) + \
+                        "(" + self.base.data.name + ")"
+        new_plot.source = self.base.data.source
         new_plot.interactive = True
-        new_plot.detector = self.base.data2D.detector
+        new_plot.detector = self.base.data.detector
         # # If the data file does not tell us what the axes are, just assume...
         new_plot.xaxis("\\rm{Q}", "A^{-1}")
         new_plot.yaxis("\\rm{Intensity} ", "cm^{-1}")
 
-        data = self.base.data2D
+        data = self.base.data
         if hasattr(data, "scale") and data.scale == 'linear' and \
-                self.base.data2D.name.count("Residuals") > 0:
+                self.base.data.name.count("Residuals") > 0:
             new_plot.ytransform = 'y'
             new_plot.yaxis("\\rm{Residuals} ", "/")
 
-        new_plot.group_id = "2daverage" + self.base.data2D.name
-        new_plot.id = (self.averager.__name__) + self.base.data2D.name
+        new_plot.group_id = "2daverage" + self.base.data.name
+        new_plot.id = (self.averager.__name__) + self.base.data.name
         new_plot.is_data = True
-        self.base.parent.update_theory(data_id=self.base.data2D.id, \
-                                       theory=new_plot)
-        wx.PostEvent(self.base.parent,
-                     NewPlotEvent(plot=new_plot, title=str(self.averager.__name__)))
+        #variant_plot = QtCore.QVariant(new_plot)
+        #GuiUtils.updateModelItemWithPlot(self._item, variant_plot, new_plot.id)
+
+        #self.base.parent.update_theory(data_id=self.base.data.id, \
+        #                               theory=new_plot)
+        #wx.PostEvent(self.base.parent,
+        #             NewPlotEvent(plot=new_plot, title=str(self.averager.__name__)))
 
     def moveend(self, ev):
         """
@@ -219,7 +228,7 @@ class BoxInteractor(_BaseInteractor):
         event = SlicerParameterEvent()
         event.type = self.__class__.__name__
         event.params = self.get_params()
-        wx.PostEvent(self.base.parent, event)
+        #wx.PostEvent(self.base.parent, event)
         # create the new data1D
         self._post_data()
 
@@ -320,7 +329,7 @@ class HorizontalLines(_BaseInteractor):
         # # Flag to check the motion of the lines
         self.has_move = False
         # # Connecting markers to mouse events and draw
-        self.connect_markers([self.top_line, self.inner_marker])
+        #self.connect_markers([self.top_line, self.inner_marker])
         self.update()
 
     def set_layer(self, n):
@@ -427,7 +436,7 @@ class VerticalLines(_BaseInteractor):
                                         linestyle='-', marker='',
                                         color=self.color, visible=True)[0]
         self.has_move = False
-        self.connect_markers([self.right_line, self.inner_marker])
+        #self.connect_markers([self.right_line, self.inner_marker])
         self.update()
 
     def set_layer(self, n):
@@ -509,8 +518,8 @@ class BoxInteractorX(BoxInteractor):
     """
     Average in Qx direction
     """
-    def __init__(self, base, axes, color='black', zorder=3):
-        BoxInteractor.__init__(self, base, axes, color=color)
+    def __init__(self, base, axes, item=None, color='black', zorder=3):
+        BoxInteractor.__init__(self, base, axes, item=item, color=color)
         self.base = base
         self._post_data()
 
@@ -526,8 +535,8 @@ class BoxInteractorY(BoxInteractor):
     """
     Average in Qy direction
     """
-    def __init__(self, base, axes, color='black', zorder=3):
-        BoxInteractor.__init__(self, base, axes, color=color)
+    def __init__(self, base, axes, item=None, color='black', zorder=3):
+        BoxInteractor.__init__(self, base, axes, item=item, color=color)
         self.base = base
         self._post_data()
 

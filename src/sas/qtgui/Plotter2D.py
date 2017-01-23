@@ -10,9 +10,12 @@ DEFAULT_CMAP = pylab.cm.jet
 from mpl_toolkits.mplot3d import Axes3D
 
 import sas.qtgui.PlotUtilities as PlotUtilities
+import sas.qtgui.GuiUtils as GuiUtils
 from sas.qtgui.PlotterBase import PlotterBase
 from sas.qtgui.ColorMap import ColorMap
+from sas.sasgui.guiframe.dataFitting import Data1D
 from sas.sasgui.guiframe.dataFitting import Data2D
+from sas.sascalc.dataloader.manipulations import CircularAverage
 
 # Minimum value of Z for which we will present data.
 MIN_Z=-32
@@ -28,6 +31,10 @@ class Plotter2DWidget(PlotterBase):
         self.cmap = DEFAULT_CMAP.name
         # Default scale
         self.scale = 'log_{10}'
+        ## to set the order of lines drawn first.
+        self.slicer_z = 5
+        ## Reference to the current slicer
+        self.slicer = None
 
     @property
     def data(self):
@@ -49,6 +56,16 @@ class Plotter2DWidget(PlotterBase):
         self.xLabel = "%s(%s)"%(data._xaxis, data._xunit)
         self.yLabel = "%s(%s)"%(data._yaxis, data._yunit)
         self.title(title=data.title)
+
+    @property
+    def item(self):
+        ''' getter for this plot's QStandardItem '''
+        return self._item
+
+    @item.setter
+    def item(self, item=None):
+        ''' setter for this plot's QStandardItem '''
+        self._item = item
 
     def plot(self, data=None, marker=None, linestyle=None):
         """
@@ -125,6 +142,12 @@ class Plotter2DWidget(PlotterBase):
         self.actionBoxAveragingX.triggered.connect(self.onBoxAveragingX)
         self.actionBoxAveragingY = self.contextMenu.addAction("&Box Averaging in Qy")
         self.actionBoxAveragingY.triggered.connect(self.onBoxAveragingY)
+        # Additional items for slicer interaction
+        if self.slicer:
+            self.actionClearSlicer = self.contextMenu.addAction("&Clear Slicer")
+            self.actionClearSlicer.triggered.connect(self.onClearSlicer)            
+            self.actionEditSlicer = self.contextMenu.addAction("&Edit Slicer Parameters")
+            self.actionEditSlicer.triggered.connect(self.onEditSlicer)            
         self.contextMenu.addSeparator()
         self.actionEditGraphLabel = self.contextMenu.addAction("&Edit Graph Label")
         self.actionEditGraphLabel.triggered.connect(self.onEditgraphLabel)
@@ -163,20 +186,100 @@ class Plotter2DWidget(PlotterBase):
 
         self.plot()
 
-    def onCircularAverage(self):
+    def onClearSlicer(self):
         """
+        Remove all sclicers from the chart
+        """
+        if self.slicer:
+            self.slicer.clear()
+            self.canvas.draw()
+            self.slicer = None
+            # Post slicer None event
+            #event = self._getEmptySlicerEvent()
+            #wx.PostEvent(self, event)
+
+    def onEditSlicer(self):
+        """
+        Present a small dialog for manipulating the current slicer
         """
         pass
+
+    def onCircularAverage(self):
+        """
+        Perform circular averaging on Data2D
+        """
+        # Find the best number of bins
+        npt = numpy.sqrt(len(self.data.data[numpy.isfinite(self.data.data)]))
+        npt = numpy.floor(npt)
+        # compute the maximum radius of data2D
+        self.qmax = max(numpy.fabs(self.data.xmax),
+                        numpy.fabs(self.data.xmin))
+        self.ymax = max(numpy.fabs(self.data.ymax),
+                        numpy.fabs(self.data.ymin))
+        self.radius = numpy.sqrt(numpy.power(self.qmax, 2) + numpy.power(self.ymax, 2))
+        #Compute beam width
+        bin_width = (self.qmax + self.qmax) / npt
+        # Create data1D circular average of data2D
+        circle = CircularAverage(r_min=0, r_max=self.radius, bin_width=bin_width)
+        circ = circle(self.data)
+        dxl = circ.dxl if hasattr(circ, "dxl") else None
+        dxw = circ.dxw if hasattr(circ, "dxw") else None
+
+        new_plot = Data1D(x=circ.x, y=circ.y, dy=circ.dy, dx=circ.dx)
+        new_plot.dxl = dxl
+        new_plot.dxw = dxw
+        new_plot.name = "Circ avg " + self.data.name
+        new_plot.title = "Circ avg " + self.data.name
+        new_plot.source = self.data.source
+        new_plot.interactive = True
+        new_plot.detector = self.data.detector
+
+        # Define axes if not done yet.
+        new_plot.xaxis("\\rm{Q}", "A^{-1}")
+        if hasattr(self.data, "scale") and \
+                    self.data.scale == 'linear':
+            new_plot.ytransform = 'y'
+            new_plot.yaxis("\\rm{Residuals} ", "normalized")
+        else:
+            new_plot.yaxis("\\rm{Intensity} ", "cm^{-1}")
+
+        new_plot.group_id = "2daverage" + self.data.name
+        new_plot.id = "Circ avg " + self.data.name
+        new_plot.is_data = True
+        variant_plot = QtCore.QVariant(new_plot)
+        GuiUtils.updateModelItemWithPlot(self._item, variant_plot, new_plot.id)
+        # TODO: force immediate display (?)
+
+    def setSlicer(self, slicer):
+        """
+        Clear the previous slicer and create a new one.
+        slicer: slicer class to create
+        """
+        # Clear current slicer
+        if not self.slicer == None:
+            self.slicer.clear()
+        # Create a new slicer
+        self.slicer_z += 1
+        self.slicer = slicer(self, self.ax, item=self._item, zorder=self.slicer_z)
+        self.ax.set_ylim(self.data.ymin, self.data.ymax)
+        self.ax.set_xlim(self.data.xmin, self.data.xmax)
+        # Draw slicer
+        self.figure.canvas.draw()
+        self.slicer.update()
 
     def onSectorView(self):
         """
+        Perform sector averaging on Q and draw sector slicer
         """
-        pass
+        from sas.sasgui.guiframe.local_perspectives.plotting.SectorSlicer import SectorInteractor
+        self.setSlicer(slicer=SectorInteractor)
 
     def onAnnulusView(self):
         """
+        Perform sector averaging on Phi and draw annulus slicer
         """
-        pass
+        from sas.sasgui.guiframe.local_perspectives.plotting.AnnulusSlicer import AnnulusInteractor
+        self.setSlicer(slicer=AnnulusInteractor)
 
     def onBoxSum(self):
         """
@@ -185,13 +288,19 @@ class Plotter2DWidget(PlotterBase):
 
     def onBoxAveragingX(self):
         """
+        Perform 2D data averaging on Qx
+        Create a new slicer.
         """
-        pass
+        from sas.sasgui.guiframe.local_perspectives.plotting.boxSlicer import BoxInteractorX
+        self.setSlicer(slicer=BoxInteractorX)
 
     def onBoxAveragingY(self):
         """
+        Perform 2D data averaging on Qy
+        Create a new slicer .
         """
-        pass
+        from sas.sasgui.guiframe.local_perspectives.plotting.boxSlicer import BoxInteractorY
+        self.setSlicer(slicer=BoxInteractorY)
 
     def onEditgraphLabel(self):
         """

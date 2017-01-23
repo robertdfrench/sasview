@@ -6,15 +6,14 @@
 #
 
 import math
-import wx
+from PyQt4 import QtGui
+from PyQt4 import QtCore
+
 # from copy import deepcopy
 # Debug printout
-from sas.sasgui.guiframe.events import NewPlotEvent
-from sas.sasgui.guiframe.events import StatusEvent
-from sas.sasgui.guiframe.events import SlicerParameterEvent
-from sas.sasgui.guiframe.events import EVT_SLICER_PARS
 from BaseInteractor import _BaseInteractor
 from sas.sasgui.guiframe.dataFitting import Data1D
+import sas.qtgui.GuiUtils as GuiUtils
 
 class AnnulusInteractor(_BaseInteractor):
     """
@@ -23,32 +22,33 @@ class AnnulusInteractor(_BaseInteractor):
     defined by 2 radius.
     this class is defined by 2 Ringinterators.
     """
-    def __init__(self, base, axes, color='black', zorder=3):
+    def __init__(self, base, axes, item=None, color='black', zorder=3):
 
         _BaseInteractor.__init__(self, base, axes, color=color)
         self.markers = []
         self.axes = axes
         self.base = base
-        self.qmax = min(math.fabs(self.base.data2D.xmax),
-                        math.fabs(self.base.data2D.xmin))  # must be positive
+        self._item = item
+        self.qmax = min(math.fabs(self.base.data.xmax),
+                        math.fabs(self.base.data.xmin))  # must be positive
         self.connect = self.base.connect
 
         # # Number of points on the plot
         self.nbins = 36
         # Cursor position of Rings (Left(-1) or Right(1))
-        self.xmaxd = self.base.data2D.xmax
-        self.xmind = self.base.data2D.xmin
+        self.xmaxd = self.base.data.xmax
+        self.xmind = self.base.data.xmin
 
         if (self.xmaxd + self.xmind) > 0:
             self.sign = 1
         else:
             self.sign = -1
         # Inner circle
-        self.inner_circle = RingInteractor(self, self.base.subplot,
+        self.inner_circle = RingInteractor(self, self.axes,
                                            zorder=zorder,
                                            r=self.qmax / 2.0, sign=self.sign)
         self.inner_circle.qmax = self.qmax
-        self.outer_circle = RingInteractor(self, self.base.subplot,
+        self.outer_circle = RingInteractor(self, self.axes,
                                            zorder=zorder + 1, r=self.qmax / 1.8,
                                            sign=self.sign)
         self.outer_circle.qmax = self.qmax * 1.2
@@ -56,22 +56,22 @@ class AnnulusInteractor(_BaseInteractor):
         self._post_data()
 
         # Bind to slice parameter events
-        self.base.Bind(EVT_SLICER_PARS, self._onEVT_SLICER_PARS)
+        #self.base.Bind(EVT_SLICER_PARS, self._onEVT_SLICER_PARS)
 
-    def _onEVT_SLICER_PARS(self, event):
-        """
-        receive an event containing parameters values to reset the slicer
+    #def _onEVT_SLICER_PARS(self, event):
+    #    """
+    #    receive an event containing parameters values to reset the slicer
 
-        :param event: event of type SlicerParameterEvent with params as
-            attribute
+    #    :param event: event of type SlicerParameterEvent with params as
+    #        attribute
 
-        """
-        wx.PostEvent(self.base,
-                     StatusEvent(status="AnnulusSlicer._onEVT_SLICER_PARS"))
-        event.Skip()
-        if event.type == self.__class__.__name__:
-            self.set_params(event.params)
-            self.base.update()
+    #    """
+    #    wx.PostEvent(self.base,
+    #                 StatusEvent(status="AnnulusSlicer._onEVT_SLICER_PARS"))
+    #    event.Skip()
+    #    if event.type == self.__class__.__name__:
+    #        self.set_params(event.params)
+    #        self.base.update()
 
     def set_layer(self, n):
         """
@@ -90,8 +90,8 @@ class AnnulusInteractor(_BaseInteractor):
         self.clear_markers()
         self.outer_circle.clear()
         self.inner_circle.clear()
-        self.base.connect.clearall()
-        self.base.Unbind(EVT_SLICER_PARS)
+        #self.base.connect.clearall()
+        #self.base.Unbind(EVT_SLICER_PARS)
 
     def update(self):
         """
@@ -119,7 +119,7 @@ class AnnulusInteractor(_BaseInteractor):
 
         """
         # Data to average
-        data = self.base.data2D
+        data = self.base.data
         # If we have no data, just return
         if data == None:
             return
@@ -137,7 +137,7 @@ class AnnulusInteractor(_BaseInteractor):
             self.nbins = nbins
         # # create the data1D Q average of data2D
         sect = Ring(r_min=rmin, r_max=rmax, nbins=self.nbins)
-        sector = sect(self.base.data2D)
+        sector = sect(self.base.data)
 
         if hasattr(sector, "dxl"):
             dxl = sector.dxl
@@ -151,27 +151,31 @@ class AnnulusInteractor(_BaseInteractor):
                           y=sector.y, dy=sector.dy)
         new_plot.dxl = dxl
         new_plot.dxw = dxw
-        new_plot.name = "AnnulusPhi" + "(" + self.base.data2D.name + ")"
+        new_plot.name = "AnnulusPhi" + "(" + self.base.data.name + ")"
+        new_plot.title = "AnnulusPhi" + "(" + self.base.data.name + ")"
 
-        new_plot.source = self.base.data2D.source
-        # new_plot.info=self.base.data2D.info
+        new_plot.source = self.base.data.source
+        # new_plot.info=self.base.data.info
         new_plot.interactive = True
-        new_plot.detector = self.base.data2D.detector
+        new_plot.detector = self.base.data.detector
         # If the data file does not tell us what the axes are, just assume...
         new_plot.xaxis("\\rm{\phi}", 'degrees')
         new_plot.yaxis("\\rm{Intensity} ", "cm^{-1}")
         if hasattr(data, "scale") and data.scale == 'linear' and \
-                self.base.data2D.name.count("Residuals") > 0:
+                self.base.data.name.count("Residuals") > 0:
             new_plot.ytransform = 'y'
             new_plot.yaxis("\\rm{Residuals} ", "/")
 
-        new_plot.group_id = "AnnulusPhi" + self.base.data2D.name
-        new_plot.id = "AnnulusPhi" + self.base.data2D.name
+        new_plot.group_id = "AnnulusPhi" + self.base.data.name
+        new_plot.id = "AnnulusPhi" + self.base.data.name
         new_plot.is_data = True
         new_plot.xtransform = "x"
         new_plot.ytransform = "y"
-        self.base.parent.update_theory(data_id=data.id, theory=new_plot)
-        wx.PostEvent(self.base.parent, NewPlotEvent(plot=new_plot, title="AnnulusPhi"))
+        variant_plot = QtCore.QVariant(new_plot)
+        GuiUtils.updateModelItemWithPlot(self._item, variant_plot, new_plot.id)
+
+        #self.base.parent.update_theory(data_id=data.id, theory=new_plot)
+        #wx.PostEvent(self.base.parent, NewPlotEvent(plot=new_plot, title="AnnulusPhi"))
 
     def moveend(self, ev):
         """
@@ -185,7 +189,7 @@ class AnnulusInteractor(_BaseInteractor):
         event = SlicerParameterEvent()
         event.type = self.__class__.__name__
         event.params = self.get_params()
-        wx.PostEvent(self.base, event)
+        #wx.PostEvent(self.base, event)
 
     def restore(self):
         """
@@ -298,15 +302,15 @@ class RingInteractor(_BaseInteractor):
             message += "Get the SVN version that is at "
             message += " least as recent as June 1, 2007"
 
-            owner = self.base.base.parent
-            wx.PostEvent(owner, StatusEvent(status="AnnulusSlicer: %s" % message))
+            #owner = self.base.base.parent
+            #wx.PostEvent(owner, StatusEvent(status="AnnulusSlicer: %s" % message))
 
         # Draw a circle
         [self.inner_circle] = self.axes.plot([], [], linestyle='-', marker='', color=self.color)
         # the number of points that make the ring line
         self.npts = 40
 
-        self.connect_markers([self.inner_marker])
+        #self.connect_markers([self.inner_marker])
         self.update()
 
     def set_layer(self, n):
@@ -447,7 +451,7 @@ class CircularMask(_BaseInteractor):
         else:
             self.sign = -1
         # Inner circle
-        self.outer_circle = RingInteractor(self, self.base.subplot, 'blue',
+        self.outer_circle = RingInteractor(self, self.axes, 'blue',
                                            zorder=zorder + 1, r=self.qmax / 1.8,
                                            sign=self.sign)
         self.outer_circle.qmax = self.qmax * 1.2
@@ -457,19 +461,19 @@ class CircularMask(_BaseInteractor):
         # Bind to slice parameter events
         # self.base.Bind(EVT_SLICER_PARS, self._onEVT_SLICER_PARS)
 
-    def _onEVT_SLICER_PARS(self, event):
-        """
-        receive an event containing parameters values to reset the slicer
+    #def _onEVT_SLICER_PARS(self, event):
+    #    """
+    #    receive an event containing parameters values to reset the slicer
 
-        :param event: event of type SlicerParameterEvent with params as
-            attribute
-        """
-        wx.PostEvent(self.base,
-                     StatusEvent(status="AnnulusSlicer._onEVT_SLICER_PARS"))
-        event.Skip()
-        if event.type == self.__class__.__name__:
-            self.set_params(event.params)
-            self.base.update()
+    #    :param event: event of type SlicerParameterEvent with params as
+    #        attribute
+    #    """
+    #    wx.PostEvent(self.base,
+    #                 StatusEvent(status="AnnulusSlicer._onEVT_SLICER_PARS"))
+    #    event.Skip()
+    #    if event.type == self.__class__.__name__:
+    #        self.set_params(event.params)
+    #        self.base.update()
 
     def set_layer(self, n):
         """
@@ -487,7 +491,7 @@ class CircularMask(_BaseInteractor):
         """
         self.clear_markers()
         self.outer_circle.clear()
-        self.base.connect.clearall()
+        #self.base.connect.clearall()
         # self.base.Unbind(EVT_SLICER_PARS)
 
     def update(self):

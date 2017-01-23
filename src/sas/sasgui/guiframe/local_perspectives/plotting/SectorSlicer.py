@@ -2,75 +2,80 @@
     Sector interactor
 """
 import math
-import wx
+from PyQt4 import QtGui
+from PyQt4 import QtCore
+
+#import wx
 from BaseInteractor import _BaseInteractor
-from sas.sasgui.guiframe.events import NewPlotEvent
-from sas.sasgui.guiframe.events import StatusEvent
-from sas.sasgui.guiframe.events import SlicerParameterEvent
-from sas.sasgui.guiframe.events import EVT_SLICER_PARS
+#from sas.sasgui.guiframe.events import NewPlotEvent
+#from sas.sasgui.guiframe.events import StatusEvent
+#from sas.sasgui.guiframe.events import SlicerParameterEvent
+#from sas.sasgui.guiframe.events import EVT_SLICER_PARS
 from sas.sasgui.guiframe.dataFitting import Data1D
+import sas.qtgui.GuiUtils as GuiUtils
 
 
 class SectorInteractor(_BaseInteractor):
     """
     Draw a sector slicer.Allow to performQ averaging on data 2D
     """
-    def __init__(self, base, axes, color='black', zorder=3):
+    def __init__(self, base, axes, item=None, color='black', zorder=3):
 
         _BaseInteractor.__init__(self, base, axes, color=color)
         ## Class initialization
         self.markers = []
         self.axes = axes
+        self._item = item
         ## connect the plot to event
         self.connect = self.base.connect
 
         ## compute qmax limit to reset the graph
-        x = math.pow(max(self.base.data2D.xmax,
-                         math.fabs(self.base.data2D.xmin)), 2)
-        y = math.pow(max(self.base.data2D.ymax,
-                         math.fabs(self.base.data2D.ymin)), 2)
+        x = math.pow(max(self.base.data.xmax,
+                         math.fabs(self.base.data.xmin)), 2)
+        y = math.pow(max(self.base.data.ymax,
+                         math.fabs(self.base.data.ymin)), 2)
         self.qmax = math.sqrt(x + y)
-        ## Number of points on the plot
+        # Number of points on the plot
         self.nbins = 20
-        ## Angle of the middle line
+        # Angle of the middle line
         self.theta2 = math.pi / 3
-        ## Absolute value of the Angle between the middle line and any side line
+        # Absolute value of the Angle between the middle line and any side line
         self.phi = math.pi / 12
-        ## Middle line
-        self.main_line = LineInteractor(self, self.base.subplot, color='blue',
+        # Middle line
+        self.main_line = LineInteractor(self, self.axes, color='blue',
                                         zorder=zorder, r=self.qmax,
                                         theta=self.theta2)
         self.main_line.qmax = self.qmax
-        ## Right Side line
-        self.right_line = SideInteractor(self, self.base.subplot, color='black',
+        # Right Side line
+        self.right_line = SideInteractor(self, self.axes, color='black',
                                          zorder=zorder, r=self.qmax,
                                          phi=-1 * self.phi, theta2=self.theta2)
         self.right_line.qmax = self.qmax
-        ## Left Side line
-        self.left_line = SideInteractor(self, self.base.subplot, color='black',
+        # Left Side line
+        self.left_line = SideInteractor(self, self.axes, color='black',
                                         zorder=zorder, r=self.qmax,
                                         phi=self.phi, theta2=self.theta2)
         self.left_line.qmax = self.qmax
-        ## draw the sector
+        # draw the sector
         self.update()
         self._post_data()
-        ## Bind to slice parameter events
-        self.base.Bind(EVT_SLICER_PARS, self._onEVT_SLICER_PARS)
+        # Bind to slice parameter events
+        #self.base.Bind(EVT_SLICER_PARS, self._onEVT_SLICER_PARS)
 
-    def _onEVT_SLICER_PARS(self, event):
-        """
-        receive an event containing parameters values to reset the slicer
+    #def _onEVT_SLICER_PARS(self, event):
+    #    """
+    #    receive an event containing parameters values to reset the slicer
 
-        :param event: event of type SlicerParameterEvent with params as
-        attribute
+    #    :param event: event of type SlicerParameterEvent with params as
+    #    attribute
 
-        """
-        wx.PostEvent(self.base.parent,
-                     StatusEvent(status="SectorSlicer._onEVT_SLICER_PARS"))
-        event.Skip()
-        if event.type == self.__class__.__name__:
-            self.set_params(event.params)
-            self.base.update()
+    #    """
+    #    #wx.PostEvent(self.base.parent,
+    #    #             StatusEvent(status="SectorSlicer._onEVT_SLICER_PARS"))
+    #    event.Skip()
+    #    if event.type == self.__class__.__name__:
+    #        self.set_params(event.params)
+    #        self.base.update()
 
     def set_layer(self, n):
         """
@@ -90,8 +95,8 @@ class SectorInteractor(_BaseInteractor):
         self.main_line.clear()
         self.left_line.clear()
         self.right_line.clear()
-        self.base.connect.clearall()
-        self.base.Unbind(EVT_SLICER_PARS)
+        #self.base.connect.clearall()
+        #self.base.Unbind(EVT_SLICER_PARS)
 
     def update(self):
         """
@@ -141,7 +146,7 @@ class SectorInteractor(_BaseInteractor):
         :param nbins: the number of point to plot for the average 1D data
         """
         ## get the data2D to average
-        data = self.base.data2D
+        data = self.base.data
         # If we have no data, just return
         if data == None:
             return
@@ -156,7 +161,7 @@ class SectorInteractor(_BaseInteractor):
                        phi_min=phimin + math.pi,
                        phi_max=phimax + math.pi, nbins=nbins)
 
-        sector = sect(self.base.data2D)
+        sector = sect(self.base.data)
         ##Create 1D data resulting from average
 
         if hasattr(sector, "dxl"):
@@ -170,25 +175,29 @@ class SectorInteractor(_BaseInteractor):
         new_plot = Data1D(x=sector.x, y=sector.y, dy=sector.dy, dx=sector.dx)
         new_plot.dxl = dxl
         new_plot.dxw = dxw
-        new_plot.name = "SectorQ" + "(" + self.base.data2D.name + ")"
-        new_plot.source = self.base.data2D.source
-        #new_plot.info=self.base.data2D.info
+        new_plot.name = "SectorQ" + "(" + self.base.data.name + ")"
+        new_plot.title = "SectorQ" + "(" + self.base.data.name + ")"
+        new_plot.source = self.base.data.source
         new_plot.interactive = True
-        new_plot.detector = self.base.data2D.detector
-        ## If the data file does not tell us what the axes are, just assume...
+        new_plot.detector = self.base.data.detector
+        # If the data file does not tell us what the axes are, just assume them.
         new_plot.xaxis("\\rm{Q}", "A^{-1}")
         new_plot.yaxis("\\rm{Intensity}", "cm^{-1}")
         if hasattr(data, "scale") and data.scale == 'linear' and \
-                self.base.data2D.name.count("Residuals") > 0:
+                self.base.data.name.count("Residuals") > 0:
             new_plot.ytransform = 'y'
             new_plot.yaxis("\\rm{Residuals} ", "/")
 
-        new_plot.group_id = "2daverage" + self.base.data2D.name
-        new_plot.id = "SectorQ" + self.base.data2D.name
+        new_plot.group_id = "2daverage" + self.base.data.name
+        new_plot.id = "SectorQ" + self.base.data.name
         new_plot.is_data = True
-        self.base.parent.update_theory(data_id=data.id, theory=new_plot)
-        wx.PostEvent(self.base.parent,
-                     NewPlotEvent(plot=new_plot, title="SectorQ" + self.base.data2D.name))
+        variant_plot = QtCore.QVariant(new_plot)
+        GuiUtils.updateModelItemWithPlot(self._item, variant_plot, new_plot.id)
+
+        # create/update the 1D plot
+        #self.base.parent.update_theory(data_id=data.id, theory=new_plot)
+        #wx.PostEvent(self.base.parent,
+        #             NewPlotEvent(plot=new_plot, title="SectorQ" + self.base.data.name))
 
     def moveend(self, ev):
         """
@@ -200,7 +209,7 @@ class SectorInteractor(_BaseInteractor):
         event.type = self.__class__.__name__
         event.params = self.get_params()
         ## Send slicer paramers to plotter2D
-        wx.PostEvent(self.base, event)
+        #wx.PostEvent(self.base, event)
 
     def restore(self):
         """
@@ -324,7 +333,7 @@ class SideInteractor(_BaseInteractor):
         ## Flag to define a motion
         self.has_move = False
         ## connecting markers and draw the picture
-        self.connect_markers([self.inner_marker, self.line])
+        #self.connect_markers([self.inner_marker, self.line])
 
     def set_layer(self, n):
         """
@@ -511,7 +520,7 @@ class LineInteractor(_BaseInteractor):
                                    color=self.color, visible=True)[0]
         self.npts = 20
         self.has_move = False
-        self.connect_markers([self.inner_marker, self.line])
+        #self.connect_markers([self.inner_marker, self.line])
         self.update()
 
     def set_layer(self, n):
