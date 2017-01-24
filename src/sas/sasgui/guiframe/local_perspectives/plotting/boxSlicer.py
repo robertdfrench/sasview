@@ -3,10 +3,6 @@ import numpy
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 
-#from sas.sasgui.guiframe.events import NewPlotEvent
-#from sas.sasgui.guiframe.events import StatusEvent
-#from sas.sasgui.guiframe.events import SlicerParameterEvent
-#from sas.sasgui.guiframe.events import EVT_SLICER_PARS
 from BaseInteractor import _BaseInteractor
 from sas.sasgui.guiframe.dataFitting import Data1D
 import sas.qtgui.GuiUtils as GuiUtils
@@ -58,26 +54,10 @@ class BoxInteractor(_BaseInteractor):
                                                 x=self.x,
                                                 y=self.y)
         self.horizontal_lines.qmax = self.qmax
-        # # draw the rectangle and plost the data 1D resulting
-        # # of averaging data2D
+        # draw the rectangle and plost the data 1D resulting
+        # of averaging data2D
         self.update()
         self._post_data()
-        # # Bind to slice parameter events
-        #self.base.Bind(EVT_SLICER_PARS, self._onEVT_SLICER_PARS)
-
-    #def _onEVT_SLICER_PARS(self, event):
-    #    """
-    #    receive an event containing parameters values to reset the slicer
-
-    #    :param event: event of type SlicerParameterEvent with params as
-    #        attribute
-    #    """
-    #    wx.PostEvent(self.base.parent,
-    #                 StatusEvent(status="BoxSlicer._onEVT_SLICER_PARS"))
-    #    event.Skip()
-    #    if event.type == self.__class__.__name__:
-    #        self.set_params(event.params)
-    #        self.base.update()
 
     def update_and_post(self):
         """
@@ -104,8 +84,7 @@ class BoxInteractor(_BaseInteractor):
         self.clear_markers()
         self.horizontal_lines.clear()
         self.vertical_lines.clear()
-        #self.base.connect.clearall()
-        #self.base.Unbind(EVT_SLICER_PARS)
+        self.base.connect.clearall()
 
     def update(self):
         """
@@ -126,7 +105,6 @@ class BoxInteractor(_BaseInteractor):
         Remember the roughness for this layer and the next so that we
         can restore on Esc.
         """
-        self.base.freeze_axes()
         self.vertical_lines.save(ev)
         self.horizontal_lines.save(ev)
 
@@ -209,13 +187,8 @@ class BoxInteractor(_BaseInteractor):
         new_plot.group_id = "2daverage" + self.base.data.name
         new_plot.id = (self.averager.__name__) + self.base.data.name
         new_plot.is_data = True
-        #variant_plot = QtCore.QVariant(new_plot)
-        #GuiUtils.updateModelItemWithPlot(self._item, variant_plot, new_plot.id)
-
-        #self.base.parent.update_theory(data_id=self.base.data.id, \
-        #                               theory=new_plot)
-        #wx.PostEvent(self.base.parent,
-        #             NewPlotEvent(plot=new_plot, title=str(self.averager.__name__)))
+        variant_plot = QtCore.QVariant(new_plot)
+        GuiUtils.updateModelItemWithPlot(self._item, variant_plot, new_plot.id)
 
     def moveend(self, ev):
         """
@@ -223,13 +196,6 @@ class BoxInteractor(_BaseInteractor):
         Post the slicer new parameters and creates a new Data1D
         corresponding to the new average
         """
-        self.base.thaw_axes()
-        # Post paramters
-        event = SlicerParameterEvent()
-        event.type = self.__class__.__name__
-        event.params = self.get_params()
-        #wx.PostEvent(self.base.parent, event)
-        # create the new data1D
         self._post_data()
 
     def restore(self):
@@ -277,16 +243,6 @@ class BoxInteractor(_BaseInteractor):
         self.vertical_lines.update(x=self.x, y=self.y)
         self.post_data(nbins=None)
 
-    def freeze_axes(self):
-        """
-        """
-        self.base.freeze_axes()
-
-    def thaw_axes(self):
-        """
-        """
-        self.base.thaw_axes()
-
     def draw(self):
         """
         """
@@ -302,16 +258,16 @@ class HorizontalLines(_BaseInteractor):
         """
         """
         _BaseInteractor.__init__(self, base, axes, color=color)
-        # #Class initialization
+        # Class initialization
         self.markers = []
         self.axes = axes
-        # # Saving the end points of two lines
+        # Saving the end points of two lines
         self.x = x
         self.save_x = x
 
         self.y = y
         self.save_y = y
-        # # Creating a marker
+        # Creating a marker
         # Inner circle marker
         self.inner_marker = self.axes.plot([0], [self.y], linestyle='',
                                            marker='s', markersize=10,
@@ -319,17 +275,17 @@ class HorizontalLines(_BaseInteractor):
                                            pickradius=5, label="pick",
                                            zorder=zorder,
                                            visible=True)[0]
-        # # Define 2 horizontal lines
+        # Define 2 horizontal lines
         self.top_line = self.axes.plot([self.x, -self.x], [self.y, self.y],
                                        linestyle='-', marker='',
                                        color=self.color, visible=True)[0]
         self.bottom_line = self.axes.plot([self.x, -self.x], [-self.y, -self.y],
                                           linestyle='-', marker='',
                                           color=self.color, visible=True)[0]
-        # # Flag to check the motion of the lines
+        # Flag to check the motion of the lines
         self.has_move = False
-        # # Connecting markers to mouse events and draw
-        #self.connect_markers([self.top_line, self.inner_marker])
+        # Connecting markers to mouse events and draw
+        self.connect_markers([self.top_line, self.inner_marker])
         self.update()
 
     def set_layer(self, n):
@@ -364,12 +320,12 @@ class HorizontalLines(_BaseInteractor):
         :param y: y-coordinates to reset current class y
 
         """
-        # # Reset x, y- coordinates if send as parameters
+        # Reset x, y- coordinates if send as parameters
         if x != None:
             self.x = numpy.sign(self.x) * math.fabs(x)
         if y != None:
             self.y = numpy.sign(self.y) * math.fabs(y)
-        # # Draw lines and markers
+        # Draw lines and markers
         self.inner_marker.set(xdata=[0], ydata=[self.y])
         self.top_line.set(xdata=[self.x, -self.x], ydata=[self.y, self.y])
         self.bottom_line.set(xdata=[self.x, -self.x], ydata=[-self.y, -self.y])
@@ -381,7 +337,6 @@ class HorizontalLines(_BaseInteractor):
         """
         self.save_x = self.x
         self.save_y = self.y
-        self.base.freeze_axes()
 
     def moveend(self, ev):
         """
@@ -436,7 +391,7 @@ class VerticalLines(_BaseInteractor):
                                         linestyle='-', marker='',
                                         color=self.color, visible=True)[0]
         self.has_move = False
-        #self.connect_markers([self.right_line, self.inner_marker])
+        self.connect_markers([self.right_line, self.inner_marker])
         self.update()
 
     def set_layer(self, n):
@@ -471,12 +426,12 @@ class VerticalLines(_BaseInteractor):
         :param y: y-coordinates to reset current class y
 
         """
-        # # reset x, y -coordinates if given as parameters
+        # Reset x, y -coordinates if given as parameters
         if x != None:
             self.x = numpy.sign(self.x) * math.fabs(x)
         if y != None:
             self.y = numpy.sign(self.y) * math.fabs(y)
-        # # draw lines and markers
+        # Draw lines and markers
         self.inner_marker.set(xdata=[self.x], ydata=[0])
         self.left_line.set(xdata=[-self.x, -self.x], ydata=[self.y, -self.y])
         self.right_line.set(xdata=[self.x, self.x], ydata=[self.y, -self.y])
@@ -488,7 +443,6 @@ class VerticalLines(_BaseInteractor):
         """
         self.save_x = self.x
         self.save_y = self.y
-        self.base.freeze_axes()
 
     def moveend(self, ev):
         """

@@ -5,12 +5,7 @@ import math
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 
-#import wx
 from BaseInteractor import _BaseInteractor
-#from sas.sasgui.guiframe.events import NewPlotEvent
-#from sas.sasgui.guiframe.events import StatusEvent
-#from sas.sasgui.guiframe.events import SlicerParameterEvent
-#from sas.sasgui.guiframe.events import EVT_SLICER_PARS
 from sas.sasgui.guiframe.dataFitting import Data1D
 import sas.qtgui.GuiUtils as GuiUtils
 
@@ -22,14 +17,14 @@ class SectorInteractor(_BaseInteractor):
     def __init__(self, base, axes, item=None, color='black', zorder=3):
 
         _BaseInteractor.__init__(self, base, axes, color=color)
-        ## Class initialization
+        # Class initialization
         self.markers = []
         self.axes = axes
         self._item = item
-        ## connect the plot to event
+        # Connect the plot to event
         self.connect = self.base.connect
 
-        ## compute qmax limit to reset the graph
+        # Compute qmax limit to reset the graph
         x = math.pow(max(self.base.data.xmax,
                          math.fabs(self.base.data.xmin)), 2)
         y = math.pow(max(self.base.data.ymax,
@@ -59,30 +54,11 @@ class SectorInteractor(_BaseInteractor):
         # draw the sector
         self.update()
         self._post_data()
-        # Bind to slice parameter events
-        #self.base.Bind(EVT_SLICER_PARS, self._onEVT_SLICER_PARS)
-
-    #def _onEVT_SLICER_PARS(self, event):
-    #    """
-    #    receive an event containing parameters values to reset the slicer
-
-    #    :param event: event of type SlicerParameterEvent with params as
-    #    attribute
-
-    #    """
-    #    #wx.PostEvent(self.base.parent,
-    #    #             StatusEvent(status="SectorSlicer._onEVT_SLICER_PARS"))
-    #    event.Skip()
-    #    if event.type == self.__class__.__name__:
-    #        self.set_params(event.params)
-    #        self.base.update()
 
     def set_layer(self, n):
         """
          Allow adding plot to the same panel
-
         :param n: the number of layer
-
         """
         self.layernum = n
         self.update()
@@ -95,8 +71,7 @@ class SectorInteractor(_BaseInteractor):
         self.main_line.clear()
         self.left_line.clear()
         self.right_line.clear()
-        #self.base.connect.clearall()
-        #self.base.Unbind(EVT_SLICER_PARS)
+        self.base.connect.clearall()
 
     def update(self):
         """
@@ -104,15 +79,15 @@ class SectorInteractor(_BaseInteractor):
         resetting the widgets.
         """
         # Update locations
-        ## Check if the middle line was dragged and
-        #update the picture accordingly
+        # Check if the middle line was dragged and
+        # update the picture accordingly
         if self.main_line.has_move:
             self.main_line.update()
             self.right_line.update(delta=-self.left_line.phi / 2,
                                    mline=self.main_line.theta)
             self.left_line.update(delta=self.left_line.phi / 2,
                                   mline=self.main_line.theta)
-        ## Check if the left side has moved and update the slicer accordingly
+        # Check if the left side has moved and update the slicer accordingly
         if self.left_line.has_move:
             self.main_line.update()
             self.left_line.update(phi=None, delta=None, mline=self.main_line,
@@ -120,8 +95,7 @@ class SectorInteractor(_BaseInteractor):
             self.right_line.update(phi=self.left_line.phi, delta=None,
                                    mline=self.main_line, side=True,
                                    left=False, right=True)
-        ## Check if the right side line has moved and
-        #update the slicer accordingly
+        # Check if the right side line has moved and update the slicer accordingly
         if self.right_line.has_move:
             self.main_line.update()
             self.right_line.update(phi=None, delta=None, mline=self.main_line,
@@ -134,7 +108,6 @@ class SectorInteractor(_BaseInteractor):
         Remember the roughness for this layer and the next so that we
         can restore on Esc.
         """
-        self.base.freeze_axes()
         self.main_line.save(ev)
         self.right_line.save(ev)
         self.left_line.save(ev)
@@ -145,12 +118,12 @@ class SectorInteractor(_BaseInteractor):
 
         :param nbins: the number of point to plot for the average 1D data
         """
-        ## get the data2D to average
+        # Get the data2D to average
         data = self.base.data
         # If we have no data, just return
         if data == None:
             return
-        ## Averaging
+        # Averaging
         from sas.sascalc.dataloader.manipulations import SectorQ
         radius = self.qmax
         phimin = -self.left_line.phi + self.main_line.theta
@@ -162,7 +135,7 @@ class SectorInteractor(_BaseInteractor):
                        phi_max=phimax + math.pi, nbins=nbins)
 
         sector = sect(self.base.data)
-        ##Create 1D data resulting from average
+        # Create 1D data resulting from average
 
         if hasattr(sector, "dxl"):
             dxl = sector.dxl
@@ -194,22 +167,12 @@ class SectorInteractor(_BaseInteractor):
         variant_plot = QtCore.QVariant(new_plot)
         GuiUtils.updateModelItemWithPlot(self._item, variant_plot, new_plot.id)
 
-        # create/update the 1D plot
-        #self.base.parent.update_theory(data_id=data.id, theory=new_plot)
-        #wx.PostEvent(self.base.parent,
-        #             NewPlotEvent(plot=new_plot, title="SectorQ" + self.base.data.name))
-
     def moveend(self, ev):
         """
         Called a dragging motion ends.Get slicer event
         """
-        self.base.thaw_axes()
-        ## Post parameters
-        event = SlicerParameterEvent()
-        event.type = self.__class__.__name__
-        event.params = self.get_params()
-        ## Send slicer paramers to plotter2D
-        #wx.PostEvent(self.base, event)
+        # Post parameters
+        self._post_data(self.nbins)
 
     def restore(self):
         """
@@ -233,13 +196,11 @@ class SectorInteractor(_BaseInteractor):
     def get_params(self):
         """
         Store a copy of values of parameters of the slicer into a dictionary.
-
         :return params: the dictionary created
-
         """
         params = {}
-        ## Always make sure that the left and the right line are at phi
-        ## angle of the middle line
+        # Always make sure that the left and the right line are at phi
+        # angle of the middle line
         if math.fabs(self.left_line.phi) != math.fabs(self.right_line.phi):
             msg = "Phi left and phi right are different"
             msg += " %f, %f" % (self.left_line.phi, self.right_line.phi)
@@ -261,24 +222,14 @@ class SectorInteractor(_BaseInteractor):
         phi = math.fabs(params["Delta_Phi [deg]"] * math.pi / 180)
         self.nbins = int(params["nbins"])
         self.main_line.theta = main
-        ## Reset the slicer parameters
+        # Reset the slicer parameters
         self.main_line.update()
         self.right_line.update(phi=phi, delta=None, mline=self.main_line,
                                side=True, right=True)
         self.left_line.update(phi=phi, delta=None,
                               mline=self.main_line, side=True)
-        ## post the new corresponding data
+        # Post the new corresponding data
         self._post_data(nbins=self.nbins)
-
-    def freeze_axes(self):
-        """
-        """
-        self.base.freeze_axes()
-
-    def thaw_axes(self):
-        """
-        """
-        self.base.thaw_axes()
 
     def draw(self):
         """
@@ -299,48 +250,46 @@ class SideInteractor(_BaseInteractor):
         """
         """
         _BaseInteractor.__init__(self, base, axes, color=color)
-        ## Initialize the class
+        # Initialize the class
         self.markers = []
         self.axes = axes
-        ## compute the value of the angle between the current line and
-        ## the x-axis
+        # compute the value of the angle between the current line and
+        # the x-axis
         self.save_theta = theta2 + phi
         self.theta = theta2 + phi
-        ## the value of the middle line angle with respect to the x-axis
+        # the value of the middle line angle with respect to the x-axis
         self.theta2 = theta2
-        ## Radius to find polar coordinates this line's endpoints
+        # Radius to find polar coordinates this line's endpoints
         self.radius = r
-        ## phi is the phase between the current line and the middle line
+        # phi is the phase between the current line and the middle line
         self.phi = phi
-        ## End points polar coordinates
+        # End points polar coordinates
         x1 = self.radius * math.cos(self.theta)
         y1 = self.radius * math.sin(self.theta)
         x2 = -1 * self.radius * math.cos(self.theta)
         y2 = -1 * self.radius * math.sin(self.theta)
-        ## defining a new marker
+        # Defining a new marker
         self.inner_marker = self.axes.plot([x1 / 2.5], [y1 / 2.5], linestyle='',
                                            marker='s', markersize=10,
                                            color=self.color, alpha=0.6,
                                            pickradius=5, label="pick",
                                            zorder=zorder, visible=True)[0]
 
-        ## Defining the current line
+        # Defining the current line
         self.line = self.axes.plot([x1, x2], [y1, y2],
                                    linestyle='-', marker='',
                                    color=self.color, visible=True)[0]
-        ## Flag to differentiate the left line from the right line motion
+        # Flag to differentiate the left line from the right line motion
         self.left_moving = False
-        ## Flag to define a motion
+        # Flag to define a motion
         self.has_move = False
-        ## connecting markers and draw the picture
-        #self.connect_markers([self.inner_marker, self.line])
+        # connecting markers and draw the picture
+        self.connect_markers([self.inner_marker, self.line])
 
     def set_layer(self, n):
         """
         Allow adding plot to the same panel
-
         :param n: the number of layer
-
         """
         self.layernum = n
         self.update()
@@ -367,7 +316,6 @@ class SideInteractor(_BaseInteractor):
         :param delta: phi/2 applied only when the mline was moved
 
         """
-        #print "update left or right ", self.has_move
         self.left_moving = left
         theta3 = 0
         if phi != None:
@@ -404,7 +352,6 @@ class SideInteractor(_BaseInteractor):
         can restore on Esc.
         """
         self.save_theta = self.theta
-        self.base.freeze_axes()
 
     def moveend(self, ev):
         """
@@ -424,7 +371,6 @@ class SideInteractor(_BaseInteractor):
         """
         self.theta = math.atan2(y, x)
         self.has_move = True
-        #ToDo: Simplify below
         if not self.left_moving:
             if  self.theta2 - self.theta <= 0 and self.theta2 > 0:
                 self.restore()
@@ -520,7 +466,7 @@ class LineInteractor(_BaseInteractor):
                                    color=self.color, visible=True)[0]
         self.npts = 20
         self.has_move = False
-        #self.connect_markers([self.inner_marker, self.line])
+        self.connect_markers([self.inner_marker, self.line])
         self.update()
 
     def set_layer(self, n):
@@ -562,7 +508,6 @@ class LineInteractor(_BaseInteractor):
         can restore on Esc.
         """
         self.save_theta = self.theta
-        self.base.freeze_axes()
 
     def moveend(self, ev):
         """

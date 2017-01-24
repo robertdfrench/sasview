@@ -16,6 +16,7 @@ from sas.qtgui.ColorMap import ColorMap
 from sas.sasgui.guiframe.dataFitting import Data1D
 from sas.sasgui.guiframe.dataFitting import Data2D
 from sas.sascalc.dataloader.manipulations import CircularAverage
+from sas.sasgui.guiframe.local_perspectives.plotting.binder import BindArtist
 
 # Minimum value of Z for which we will present data.
 MIN_Z=-32
@@ -31,10 +32,12 @@ class Plotter2DWidget(PlotterBase):
         self.cmap = DEFAULT_CMAP.name
         # Default scale
         self.scale = 'log_{10}'
-        ## to set the order of lines drawn first.
+        # to set the order of lines drawn first.
         self.slicer_z = 5
-        ## Reference to the current slicer
+        # Reference to the current slicer
         self.slicer = None
+        # Create Artist and bind it
+        self.connect = BindArtist(self.figure)
 
     @property
     def data(self):
@@ -194,9 +197,6 @@ class Plotter2DWidget(PlotterBase):
             self.slicer.clear()
             self.canvas.draw()
             self.slicer = None
-            # Post slicer None event
-            #event = self._getEmptySlicerEvent()
-            #wx.PostEvent(self, event)
 
     def onEditSlicer(self):
         """
@@ -228,8 +228,7 @@ class Plotter2DWidget(PlotterBase):
         new_plot = Data1D(x=circ.x, y=circ.y, dy=circ.dy, dx=circ.dx)
         new_plot.dxl = dxl
         new_plot.dxw = dxw
-        new_plot.name = "Circ avg " + self.data.name
-        new_plot.title = "Circ avg " + self.data.name
+        new_plot.name = new_plot.title = "Circ avg " + self.data.name
         new_plot.source = self.data.source
         new_plot.interactive = True
         new_plot.detector = self.data.detector
@@ -426,6 +425,13 @@ class Plotter2DWidget(PlotterBase):
             self.figure.canvas.draw_idle()
         else:
             self.figure.canvas.draw()
+
+    def update(self):
+        self.figure.canvas.draw()
+
+    def draw(self):
+        self.figure.canvas.draw()
+
 
 class Plotter2D(QtGui.QDialog, Plotter2DWidget):
     def __init__(self, parent=None, quickplot=False, dimension=2):
