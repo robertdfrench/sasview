@@ -1,4 +1,7 @@
 # Test Travis CL
+os:
+  - linux
+  - osx
 
 language: python
 python:
